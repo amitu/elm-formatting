@@ -259,6 +259,6 @@ number =
 
 {-| Print applies a formatter on a value, to produce the output.
 -}
-print : Format a String -> a -> String
-print fn a =
-    fn a |> String.join ""
+print : List String -> String
+print =
+    String.join ""

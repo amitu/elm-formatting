@@ -1,4 +1,4 @@
-module Formatting.Html exposing (html, node)
+module Formatting.Html exposing (html, node, parent, t, text)
 
 {-| This module is for writing formatter that generates Html. Say you want
 a formatter that shows first name in H1 and last name as text:
@@ -18,14 +18,14 @@ a formatter that shows first name in H1 and last name as text:
             <> (.last >> F.string |> F.map Html.text)
 
     user : User -> Html msg
-    user =
-        F.html userFormat
+    user u =
+        div [] (userFormat u)
 
-@docs node, html
+@docs node wrap
 
 -}
 
-import Formatting exposing (Format, map)
+import Formatting exposing (Format, map, s)
 import Html exposing (Html)
 
 
@@ -48,27 +48,55 @@ node n attrs =
     map (Html.text >> List.singleton) >> map (n attrs)
 
 
-{-| html is the equivalent of Formatting.print for Html.
+{-| Helper that wraps exact text into Html.text.
+-}
+t : String -> Format a (Html msg)
+t =
+    s >> map Html.text
 
-    name : Format User (Html msg)
-    name =
+
+{-| parent lets you wrap current tree inside an HTML node.
+
+    first : Format User (Html msg)
+    first =
         (.first >> string)
-            -- this gives us a `Format User String`
-            |> node Html.h1 []
+            |> node span [class "first"]
 
+    last : Format User (Html msg)
+    last =
+        (.last >> string)
+            |> node span [class "last"]
 
-    -- converts it to `Format User (Html msg)`
+    full_name : Format User (Html msg)
+    full_name =
+        (first <> t " " <> last) |> parent div [ class [ "full_name" ] ]
 
-    user : User -> Html msg
-    user u =
-        html name u
+    full_name {first = "Amit", last = "Upadhyay"}
 
-
-    --> user {first = "Amit"} == Html.span [] [ Html.h1 [] [ text "Amit" ] ]
-
-It wraps everything inside a `SPAN` tag.
+    --> <div class="full_name">
+    --     <span class="first">Amit</span> <span class="last">Upadhyay</span>
+    --  </div>
 
 -}
-html : Format a (Html msg) -> a -> Html msg
-html fn a =
-    fn a |> Html.span []
+parent :
+    (List (Html.Attribute msg) -> List (Html msg) -> Html msg)
+    -> List (Html.Attribute msg)
+    -> Format a (Html msg)
+    -> Format a (Html msg)
+parent n attrs f =
+    \a -> [ n attrs (f a) ]
+
+
+text : List String -> Format a (Html msg)
+text l =
+    \_ -> List.map Html.text l
+
+
+html :
+    (List (Html.Attribute msg) -> List (Html msg) -> Html msg)
+    -> List (Html.Attribute msg)
+    -> Format a (Html msg)
+    -> a
+    -> Html msg
+html n attrs f a =
+    n attrs (f a)
