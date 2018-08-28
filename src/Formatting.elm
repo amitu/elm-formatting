@@ -1,21 +1,10 @@
-module Formatting
-    exposing
-        ( (<>)
-        , Format
-        , bool
-        , float
-        , int
-        , map
-        , number
-        , pad
-        , padLeft
-        , padRight
-        , print
-        , roundTo
-        , s
-        , string
-        , wrap
-        )
+module Formatting exposing
+    ( s, string, int, bool, float
+    , c, map
+    , print
+    , wrap, pad, padLeft, padRight, roundTo
+    , Format
+    )
 
 {-| This library is to write type safe formatter.
 
@@ -25,7 +14,7 @@ record, and I want to convert it to a string, for printing.
 The output can be other than string, eg I want to print to "html", say each
 show someone's first name as bold, and last name as grayed out.
 
-    import Formatting as F exposing ((<>))
+    import Formatting as F exposing (c)
 
     type alias User =
         { first : String
@@ -34,7 +23,7 @@ show someone's first name as bold, and last name as grayed out.
 
     userFormat : F.Format User String
     userFormat =
-        (.first >> F.string) <> F.s " " <> (.last >> F.string)
+        (.first >> F.string) |> c (F.s " ") |> c (.last >> F.string)
 
     user : User -> String
     user =
@@ -62,12 +51,12 @@ will can use `map` function to convert. So the path is `a -> String -> b`.
 
 You can ignore these methods and directly write `Format a b` if you so want.
 
-@docs s, string, int, bool, float, number
+@docs s, string, int, bool, float
 
 
 # Format Composition
 
-@docs (<>), map
+@docs c, map
 
 
 # Printer
@@ -97,7 +86,7 @@ fancy, for a Format a String, it converts a to list of String.
 
 The reason why we format it into a list of string, is so we can compose more
 than one formatter together. Each formatter can return a list of final output
-type, `r`, into a list, and our composition function `<>` concatenates the
+type, `r`, into a list, and our composition function `c` concatenates the
 lists together.
 
 If Elm has support for monoids, we may not have needed the list.
@@ -107,7 +96,7 @@ type alias Format a r =
     a -> List r
 
 
-{-| <> lets you compose formatters together, best demonstrated via an example:
+{-| `c` lets you compose formatters together, best demonstrated via an example:
 
     first : Format User String
     first =
@@ -119,15 +108,17 @@ type alias Format a r =
 
     name : Format User String
     name =
-        first <> s " " <> last
+        first |> c (s " ") |> c last
 
     print name { first = "Amit", last = "Upadhyay" }
 
     --> "Amit Upadhyay"
 
+Think of `c` as "compose" or "concatenate".
+
 -}
-(<>) : Format a r -> Format a r -> Format a r
-(<>) lhs rhs =
+c : Format a r -> Format a r -> Format a r
+c rhs lhs =
     \a -> lhs a ++ rhs a
 
 
@@ -159,7 +150,7 @@ map f format =
 -}
 wrap : r -> Format a r -> Format a r
 wrap wrapping format =
-    s wrapping <> format <> s wrapping
+    s wrapping |> c format |> c (s wrapping)
 
 
 {-| Pad a string on both sides until it has a given length.
@@ -189,7 +180,8 @@ roundTo : Int -> Format Float String
 roundTo n =
     \value ->
         if n == 0 then
-            [ toString (round value) ]
+            [ String.fromInt (round value) ]
+
         else
             let
                 exp =
@@ -201,13 +193,14 @@ roundTo n =
                 sign =
                     if value < 0.0 then
                         "-"
+
                     else
                         ""
             in
             [ sign ]
                 ++ int (raised // exp)
                 ++ string "."
-                ++ string (String.padLeft n '0' (toString (rem raised exp)))
+                ++ string (String.padLeft n '0' (String.fromInt (remainderBy exp raised)))
 
 
 {-| Creates a formatter that returns the same string for any value.
@@ -224,37 +217,34 @@ string =
     List.singleton
 
 
-any : Format a String
-any =
-    toString >> List.singleton
-
-
 {-| Creates a formatter for Int.
 -}
 int : Format Int String
 int =
-    any
+    String.fromInt >> List.singleton
+
+
+boolToString : Bool -> String
+boolToString x =
+    if x then
+        "True"
+
+    else
+        "False"
 
 
 {-| Creates a formatter for Bool.
 -}
 bool : Format Bool String
 bool =
-    any
+    boolToString >> List.singleton
 
 
 {-| Creates a formatter for Float.
 -}
 float : Format Float String
 float =
-    any
-
-
-{-| Creates a formatter for Int or Float.
--}
-number : Format number String
-number =
-    any
+    String.fromFloat >> List.singleton
 
 
 {-| Print applies a formatter on a value, to produce the output.

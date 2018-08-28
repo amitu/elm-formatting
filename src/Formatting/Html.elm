@@ -1,9 +1,13 @@
-module Formatting.Html exposing (html, node, parent, t, text)
+module Formatting.Html exposing
+    ( html
+    , int, node, parent, string, t, text
+    )
 
 {-| This module is for writing formatter that generates Html. Say you want
 a formatter that shows first name in H1 and last name as text:
 
-    import Formatting as F exposing ((<>))
+    import Formatting as F exposing (c)
+    import Formatting.Html as H
     import Html exposing (Html)
 
     type alias User =
@@ -13,15 +17,17 @@ a formatter that shows first name in H1 and last name as text:
 
     userFormat : F.Format User (Html msg)
     userFormat =
-        (.first >> F.string |> F.node Html.h1 [])
-            <> F.s " "
-            <> (.last >> F.string |> F.map Html.text)
+        (.first >> F.string |> H.node Html.h1 [])
+            |> c (H.t " ")
+            |> c (.last >> H.text)
 
     user : User -> Html msg
     user u =
-        div [] (userFormat u)
+        Html.div [] (userFormat u)
 
-@docs node wrap
+@docs int string text
+@docs t node parent
+@docs html
 
 -}
 
@@ -55,6 +61,27 @@ t =
     s >> map Html.text
 
 
+{-| Creates an HTML formatter for a String.
+-}
+string : Format String (Html msg)
+string =
+    Html.text >> List.singleton
+
+
+{-| Creates an Html formatter for a list of strings.
+-}
+text : List String -> Format a (Html msg)
+text l =
+    \_ -> List.map Html.text l
+
+
+{-| Creates an HTML formatter for Int.
+-}
+int : Format Int (Html msg)
+int =
+    String.fromInt >> string
+
+
 {-| parent lets you wrap current tree inside an HTML node.
 
     first : Format User (Html msg)
@@ -85,11 +112,6 @@ parent :
     -> Format a (Html msg)
 parent n attrs f =
     \a -> [ n attrs (f a) ]
-
-
-text : List String -> Format a (Html msg)
-text l =
-    \_ -> List.map Html.text l
 
 
 html :
